@@ -1,0 +1,193 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProductType {
+  HAT
+  TSHIRT
+}
+
+enum OrderStatus {
+  PAID
+  ASSETS_GENERATED
+  NEEDS_REVIEW
+  IN_PRODUCTION
+  QC
+  READY_TO_SHIP
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+  ISSUE_CUSTOMER
+}
+
+enum JobType {
+  RENDER
+  DIGITIZE
+  PRODUCTION_PACK
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  password  String
+  createdAt DateTime  @default(now())
+  addresses Address[]
+  orders    Order[]
+}
+
+model Address {
+  id         String @id @default(cuid())
+  userId     String
+  line1      String
+  line2      String?
+  city       String
+  region     String
+  postalCode String?
+  phone      String?
+  user       User   @relation(fields: [userId], references: [id])
+}
+
+model Product {
+  id       String      @id @default(cuid())
+  slug     String      @unique
+  name     String
+  type     ProductType
+  active   Boolean     @default(true)
+  variants Variant[]
+}
+
+model Variant {
+  id         String      @id @default(cuid())
+  productId  String
+  sku        String      @unique
+  colorName  String
+  priceClp   Int
+  product    Product     @relation(fields: [productId], references: [id])
+  orderItems OrderItem[]
+}
+
+model UploadAsset {
+  id            String   @id @default(cuid())
+  originalUrl   String
+  canonicalUrl  String
+  metadataJson  Json
+  canonicalHash String
+  createdAt     DateTime @default(now())
+}
+
+model Customization {
+  id                         String        @id @default(cuid())
+  originalAssetId            String
+  canonicalAssetId           String
+  canonicalHash              String
+  pipelineVersion            String
+  configHash                 String
+  qualityReportJson          Json
+  paletteJson                Json
+  patchRenderPngUrl          String
+  patchRenderSvgUrl          String?
+  embroideryDstUrl           String
+  embroideryPreviewPngUrl    String
+  approvedByCustomerAt       DateTime?
+  createdAt                  DateTime      @default(now())
+  jobExecutions              JobExecution[]
+}
+
+model Order {
+  id              String         @id @default(cuid())
+  userId          String
+  status          OrderStatus    @default(PAID)
+  totalClp        Int
+  customizationId String?
+  createdAt       DateTime       @default(now())
+  user            User           @relation(fields: [userId], references: [id])
+  items           OrderItem[]
+  payment         Payment?
+  shipment        Shipment?
+  jobExecutions   JobExecution[]
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  variantId String
+  qty       Int
+  priceClp  Int
+  order     Order   @relation(fields: [orderId], references: [id])
+  variant   Variant @relation(fields: [variantId], references: [id])
+}
+
+model Payment {
+  id             String   @id @default(cuid())
+  orderId        String   @unique
+  provider       String
+  transactionRef String
+  status         String
+  rawJson        Json
+  createdAt      DateTime @default(now())
+  order          Order    @relation(fields: [orderId], references: [id])
+}
+
+model Shipment {
+  id             String   @id @default(cuid())
+  orderId        String   @unique
+  provider       String
+  trackingNumber String?
+  status         String
+  addressJson    Json
+  createdAt      DateTime @default(now())
+  order          Order    @relation(fields: [orderId], references: [id])
+}
+
+model ProductionPack {
+  id          String   @id @default(cuid())
+  orderId     String
+  zipUrl      String
+  version     String
+  generatedAt DateTime @default(now())
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorId     String?
+  actorType   String
+  entityType  String
+  entityId    String
+  action      String
+  payloadJson Json
+  createdAt   DateTime @default(now())
+}
+
+model JobExecution {
+  id               String        @id @default(cuid())
+  queueJobId       String
+  jobType          JobType
+  status           JobStatus
+  attempts         Int           @default(0)
+  orderId          String
+  customizationId  String?
+  correlationId    String
+  payloadJson      Json
+  errorJson        Json?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  order            Order         @relation(fields: [orderId], references: [id])
+  customization    Customization? @relation(fields: [customizationId], references: [id])
+
+  @@index([orderId, jobType])
+  @@index([correlationId])
+  @@unique([queueJobId, jobType])
+}
