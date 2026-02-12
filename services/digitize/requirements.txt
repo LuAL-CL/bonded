@@ -1,0 +1,4 @@
+# Optional dependencies for production-quality binary DST writing and PNG visuals.
+# Core pipeline and tests run without external installs via built-in fallbacks.
+pyembroidery==1.5.1
+Pillow==10.4.0

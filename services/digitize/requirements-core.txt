@@ -1,0 +1,1 @@
+# Intentionally empty: core tests and fallback digitizer run with Python stdlib only.
