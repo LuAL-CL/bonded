@@ -1,8 +1,13 @@
+import { demoDisabledMessage, isDemoMode } from "@/lib/demo";
 import { WebpayProvider } from "@/lib/providers";
 import { prisma } from "@/lib/prisma";
 import { enqueueRender } from "@/lib/jobs/producers";
 
 export async function POST(req: Request) {
+  if (isDemoMode()) {
+    return Response.json({ disabled: true, message: demoDisabledMessage("Payment") }, { status: 503 });
+  }
+
   const payloadText = await req.text();
   const signature = req.headers.get("tbk-signature") ?? undefined;
   const provider = new WebpayProvider();
