@@ -4,13 +4,18 @@ export interface PaymentProvider {
 }
 
 export class WebpayProvider implements PaymentProvider {
+
   async createTransaction(orderId: string, amountClp: number) {
     return { token: `stub-${orderId}-${amountClp}`, url: "https://webpay3g.transbank.cl" };
   }
-  async verifyWebhook() {
-    return true;
+
+  async verifyWebhook(payload: string, signature?: string): Promise<boolean> {
+    // TODO: implementar validación real con Transbank
+    // Por ahora dejamos stub para que no rompa el build
+    return Boolean(payload);
   }
 }
+
 
 export interface ShippingProvider {
   quote(region: string): Promise<number>;
