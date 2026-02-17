@@ -16,16 +16,16 @@ export type ProductionPackJobs = { "production-pack": ProductionPackJobPayload }
 
 // 👇 Queue tipada por nombre de job
 export const renderQueue = new Queue<RenderJobs>(QUEUE_NAMES.render, {
-  connection: redisConnection,
+  connection: redisConnection as any,
   defaultJobOptions: baseOptions
 });
 
 export const digitizeQueue = new Queue<DigitizeJobs>(QUEUE_NAMES.digitize, {
-  connection: redisConnection,
+  connection: redisConnection as any,
   defaultJobOptions: baseOptions
 });
 
 export const productionPackQueue = new Queue<ProductionPackJobs>(QUEUE_NAMES.productionPack, {
-  connection: redisConnection,
+  connection: redisConnection as any,
   defaultJobOptions: baseOptions
 });
