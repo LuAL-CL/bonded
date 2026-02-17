@@ -21,7 +21,7 @@ export const renderConfigSchema = z.object({
     maxStitchLengthMm: z.number().default(4),
     maxJumpLengthMm: z.number().default(6),
     trimJumpThresholdMm: z.number().default(4.5)
-  })
+  }).default({})
 });
 
 export type RenderConfig = z.infer<typeof renderConfigSchema>;
