@@ -9,6 +9,23 @@ const baseOptions: JobsOptions = {
   removeOnFail: { age: 60 * 60 * 24 * 7, count: 5000 }
 };
 
-export const renderQueue = new Queue<RenderJobPayload>(QUEUE_NAMES.render, { connection: redisConnection, defaultJobOptions: baseOptions });
-export const digitizeQueue = new Queue<DigitizeJobPayload>(QUEUE_NAMES.digitize, { connection: redisConnection, defaultJobOptions: baseOptions });
-export const productionPackQueue = new Queue<ProductionPackJobPayload>(QUEUE_NAMES.productionPack, { connection: redisConnection, defaultJobOptions: baseOptions });
+// 👇 “job maps” (nombre -> payload)
+export type RenderJobs = { render: RenderJobPayload };
+export type DigitizeJobs = { digitize: DigitizeJobPayload };
+export type ProductionPackJobs = { "production-pack": ProductionPackJobPayload };
+
+// 👇 Queue tipada por nombre de job
+export const renderQueue = new Queue<RenderJobs>(QUEUE_NAMES.render, {
+  connection: redisConnection as any,
+  defaultJobOptions: baseOptions
+});
+
+export const digitizeQueue = new Queue<DigitizeJobs>(QUEUE_NAMES.digitize, {
+  connection: redisConnection as any,
+  defaultJobOptions: baseOptions
+});
+
+export const productionPackQueue = new Queue<ProductionPackJobs>(QUEUE_NAMES.productionPack, {
+  connection: redisConnection as any,
+  defaultJobOptions: baseOptions
+});

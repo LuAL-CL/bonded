@@ -36,3 +36,29 @@ Core digitizer tests run with zero external installs:
 
 Optional visual tests auto-skip when Pillow is missing:
 - `python -m unittest services/digitize/src/test_digitize_visual.py`
+
+## Deploy to Vercel in demo mode
+Use this when you want a deploy with **no DB, no payments, and no workers**.
+
+### 1) Import the repo in Vercel
+- Project root: `apps/web`
+- Framework preset: Next.js
+
+### 2) Set environment variables in Vercel
+Set these exact values for Production/Preview:
+- `NEXT_PUBLIC_DEMO_MODE=true`
+- `DEMO_MODE=true`
+
+No `DATABASE_URL` is required in demo mode.
+
+### 3) Deploy
+- Trigger deploy (or push to main).
+- In demo mode behavior:
+  - Checkout page shows: `Payment disabled in demo`.
+  - Payment API routes return disabled mock responses.
+  - DB-backed admin/order routes return mock data.
+  - Prisma is not initialized.
+
+### 4) Local demo build command
+From `apps/web`:
+- `NEXT_PUBLIC_DEMO_MODE=true DEMO_MODE=true npm run build`

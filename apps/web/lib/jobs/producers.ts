@@ -6,7 +6,7 @@ import { log } from "./logger";
 
 export async function enqueueRender(payload: Omit<RenderJobPayload, "correlationId"> & { correlationId?: string }) {
   const correlationId = payload.correlationId ?? `ord-${payload.orderId}-cust-${payload.customizationId}-${crypto.randomUUID()}`;
-  const job = await renderQueue.add("render", { ...payload, correlationId }, { jobId: `${payload.orderId}:${payload.customizationId}:render` });
+const job = await (renderQueue as any).add("render", { ...payload, correlationId },{ jobId: `${payload.orderId}:${payload.customizationId}:render` });
   await prisma.jobExecution.upsert({
     where: { queueJobId_jobType: { queueJobId: job.id!, jobType: "RENDER" } },
     update: { status: "QUEUED", payloadJson: payload, correlationId },
@@ -25,7 +25,11 @@ export async function enqueueRender(payload: Omit<RenderJobPayload, "correlation
 }
 
 export async function enqueueDigitize(payload: DigitizeJobPayload) {
-  const job = await digitizeQueue.add("digitize", payload, { jobId: `${payload.orderId}:${payload.customizationId}:digitize` });
+const job = await (digitizeQueue as any).add(
+  "digitize",
+  payload,
+  { jobId: `${payload.orderId}:${payload.customizationId}:digitize` }
+);
   await prisma.jobExecution.upsert({
     where: { queueJobId_jobType: { queueJobId: job.id!, jobType: "DIGITIZE" } },
     update: { status: "QUEUED", payloadJson: payload, correlationId: payload.correlationId },
@@ -43,7 +47,11 @@ export async function enqueueDigitize(payload: DigitizeJobPayload) {
 }
 
 export async function enqueueProductionPack(payload: ProductionPackJobPayload) {
-  const job = await productionPackQueue.add("production-pack", payload, { jobId: `${payload.orderId}:${payload.customizationId}:pack` });
+const job = await (productionPackQueue as any).add(
+  "production-pack",
+  payload,
+  { jobId: `${payload.orderId}:${payload.customizationId}:pack` }
+);
   await prisma.jobExecution.upsert({
     where: { queueJobId_jobType: { queueJobId: job.id!, jobType: "PRODUCTION_PACK" } },
     update: { status: "QUEUED", payloadJson: payload, correlationId: payload.correlationId },

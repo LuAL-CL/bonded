@@ -29,8 +29,15 @@ export type RenderConfig = z.infer<typeof renderConfigSchema>;
 export const defaultRenderConfig: RenderConfig = renderConfigSchema.parse({});
 
 export function configHash(config: RenderConfig): string {
-  return crypto.createHash("sha256").update(stableStringify(config)).digest("hex");
+  const s = stableStringify(config);
+  if (s === undefined) {
+    // En la práctica no debería pasar con un objeto normal,
+    // pero el type lo permite y TS rompe el build.
+    throw new Error("stableStringify returned undefined for render config");
+  }
+  return crypto.createHash("sha256").update(s).digest("hex");
 }
+
 
 export function canonicalHash(bytes: Buffer): string {
   return crypto.createHash("sha256").update(bytes).digest("hex");
