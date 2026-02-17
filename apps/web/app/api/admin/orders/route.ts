@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { isDemoMode } from "@/lib/demo";
 import { prisma } from "@/lib/prisma";
 

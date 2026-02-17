@@ -1,6 +1,7 @@
+export const dynamic = "force-dynamic";
+
 import { isDemoMode } from "@/lib/demo";
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@prisma/client";
 
 type OrderRow = {
   id: string;
