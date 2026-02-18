@@ -4,12 +4,8 @@ import { digitizeQueue, productionPackQueue, renderQueue } from "./queues";
 import type { DigitizeJobPayload, ProductionPackJobPayload, RenderJobPayload } from "./types";
 import { log } from "./logger";
 
-export async function enqueueRender(
-  payload: Omit<RenderJobPayload, "correlationId"> & { correlationId?: string }
-) {
-  const correlationId =
-    payload.correlationId ??
-    `ord-${payload.orderId}-cust-${payload.customizationId}-${crypto.randomUUID()}`;
+export async function enqueueRender(payload: Omit<RenderJobPayload, "correlationId">) {
+  const correlationId = `ord-${payload.orderId}-cust-${payload.customizationId}-${crypto.randomUUID()}`;
 
   // Jobs deshabilitados (ej: Vercel sin Redis)
   if (!renderQueue) {
@@ -21,15 +17,18 @@ export async function enqueueRender(
     return correlationId;
   }
 
-  const job = await renderQueue.add(
-    "render",
-    { ...payload, correlationId },
-    { jobId: `${payload.orderId}:${payload.customizationId}:render` }
-  );
+  const jobPayload: RenderJobPayload = {
+    ...payload,
+    correlationId
+  };
+
+  const job = await renderQueue.add("render", jobPayload, {
+    jobId: `${payload.orderId}:${payload.customizationId}:render`
+  });
 
   await prisma.jobExecution.upsert({
     where: { queueJobId_jobType: { queueJobId: job.id!, jobType: "RENDER" } },
-    update: { status: "QUEUED", payloadJson: payload, correlationId },
+    update: { status: "QUEUED", payloadJson: jobPayload, correlationId },
     create: {
       queueJobId: job.id!,
       jobType: "RENDER",
@@ -37,7 +36,7 @@ export async function enqueueRender(
       orderId: payload.orderId,
       customizationId: payload.customizationId,
       correlationId,
-      payloadJson: payload
+      payloadJson: jobPayload
     }
   });
 
