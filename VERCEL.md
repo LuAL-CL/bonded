@@ -17,7 +17,15 @@ No `DATABASE_URL` required in this mode.
 ## Build configuration
 
 - Root directory: `apps/web` (or monorepo root with filtered build)
-- Build command: `npm run build` (in `apps/web`) or `pnpm --filter @bonded/web build`
+- Install command: `corepack enable && corepack prepare pnpm@10.4.1 --activate && pnpm install --frozen-lockfile`
+- Build command: `pnpm --filter @bonded/web build`
+- Node version: `20.x` (matches `.nvmrc` and `package.json` engines)
+
+## Deterministic install notes
+
+- Keep `pnpm-lock.yaml` committed at the repo root.
+- Do not use `pnpm install --no-frozen-lockfile` in CI/Vercel.
+- If dependencies are changed, regenerate the lockfile locally with the pinned pnpm version and commit it.
 
 ## Verify after deploy
 
