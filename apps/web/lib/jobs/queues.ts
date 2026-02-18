@@ -14,18 +14,27 @@ export type RenderJobs = { render: RenderJobPayload };
 export type DigitizeJobs = { digitize: DigitizeJobPayload };
 export type ProductionPackJobs = { "production-pack": ProductionPackJobPayload };
 
-// 👇 Queue tipada por nombre de job
-export const renderQueue = new Queue<RenderJobs>(QUEUE_NAMES.render, {
-  connection: redisConnection as any,
-  defaultJobOptions: baseOptions
-});
+// 👇 Detectar si jobs están deshabilitados
+const jobsDisabled = process.env.DISABLE_JOBS === "true";
 
-export const digitizeQueue = new Queue<DigitizeJobs>(QUEUE_NAMES.digitize, {
-  connection: redisConnection as any,
-  defaultJobOptions: baseOptions
-});
+// 👇 Crear queues solo si están habilitados
+export const renderQueue = jobsDisabled
+  ? null
+  : new Queue<RenderJobs>(QUEUE_NAMES.render, {
+      connection: redisConnection as any,
+      defaultJobOptions: baseOptions
+    });
 
-export const productionPackQueue = new Queue<ProductionPackJobs>(QUEUE_NAMES.productionPack, {
-  connection: redisConnection as any,
-  defaultJobOptions: baseOptions
-});
+export const digitizeQueue = jobsDisabled
+  ? null
+  : new Queue<DigitizeJobs>(QUEUE_NAMES.digitize, {
+      connection: redisConnection as any,
+      defaultJobOptions: baseOptions
+    });
+
+export const productionPackQueue = jobsDisabled
+  ? null
+  : new Queue<ProductionPackJobs>(QUEUE_NAMES.productionPack, {
+      connection: redisConnection as any,
+      defaultJobOptions: baseOptions
+    });
