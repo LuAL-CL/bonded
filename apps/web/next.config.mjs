@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ["@bonded/shared"],
+  transpilePackages: ["@bonded/shared", "@bonded/render-worker"],
   experimental: {
     // Keep native addons out of the webpack bundle (sharp, ioredis, etc.)
     // Next.js 14 uses serverComponentsExternalPackages (renamed in v15)
