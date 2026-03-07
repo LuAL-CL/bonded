@@ -340,7 +340,7 @@ function makeStitchDirectionMap(regions: RegionManifest[], width: number, height
 }
 
 export async function canonicalize(input: Buffer): Promise<Buffer> {
-  return sharp(input).rotate().resize({ width: 1024, height: 1024, fit: "inside" }).png().toBuffer();
+  return sharp(input).rotate().resize({ width: 1024, height: 1024, fit: "inside" }).flatten({ background: "#ffffff" }).png().toBuffer();
 }
 
 export async function qualityGate(canonical: Buffer): Promise<QualityReport> {
@@ -367,7 +367,7 @@ function embroideryTextureSvg(width: number, height: number): Buffer {
 
 export async function processPetPortrait(canonical: Buffer, outputDir: string, prefix: string): Promise<RenderPipelineOutput> {
   await fs.mkdir(outputDir, { recursive: true });
-  const image = sharp(canonical);
+  const image = sharp(canonical).flatten({ background: "#ffffff" });
   const { data, info } = await image.raw().toBuffer({ resolveWithObject: true });
   const mask = detectPetMask(data, info.width, info.height);
   const contour = makeContour(mask, info.width, info.height);
@@ -375,10 +375,10 @@ export async function processPetPortrait(canonical: Buffer, outputDir: string, p
 
   const cropW = bbox.x1 - bbox.x0;
   const cropH = bbox.y1 - bbox.y0;
-  const cropped = await sharp(canonical).extract({ left: bbox.x0, top: bbox.y0, width: cropW, height: cropH }).resize(1024, 1024, { fit: "cover" }).png().toBuffer();
+  const cropped = await sharp(canonical).extract({ left: bbox.x0, top: bbox.y0, width: cropW, height: cropH }).resize(1024, 1024, { fit: "cover" }).flatten({ background: "#ffffff" }).png().toBuffer();
 
   const quality = await qualityGate(cropped);
-  const { data: cData, info: cInfo } = await sharp(cropped).raw().toBuffer({ resolveWithObject: true });
+  const { data: cData, info: cInfo } = await sharp(cropped).flatten({ background: "#ffffff" }).raw().toBuffer({ resolveWithObject: true });
   const cMask = detectPetMask(cData, cInfo.width, cInfo.height);
   const petPaletteLimit = 8;
   const { indexed, palette } = reducePalette(cData, cMask, cInfo.width, cInfo.height, petPaletteLimit);
