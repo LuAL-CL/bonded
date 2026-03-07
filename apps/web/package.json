@@ -14,6 +14,7 @@
     "worker:pack": "tsx workers/production-pack-worker.ts"
   },
   "dependencies": {
+    "@bonded/render-worker": "workspace:*",
     "@bonded/shared": "workspace:*",
     "@prisma/client": "^5.20.0",
     "archiver": "^7.0.1",

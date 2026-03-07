@@ -14,6 +14,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@bonded/render-worker':
+        specifier: workspace:*
+        version: link:../../services/render
       '@bonded/shared':
         specifier: workspace:*
         version: link:../../packages/shared
