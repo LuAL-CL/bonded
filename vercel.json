@@ -1,0 +1,11 @@
+{
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm --filter @bonded/web exec prisma generate && pnpm --filter @bonded/web build",
+  "outputDirectory": "apps/web/.next",
+  "framework": "nextjs",
+  "env": {
+    "DISABLE_JOBS": "true",
+    "DEMO_MODE": "true",
+    "NEXT_PUBLIC_DEMO_MODE": "true"
+  }
+}
