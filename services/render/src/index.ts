@@ -293,6 +293,74 @@ function makeContour(mask: Uint8Array, width: number, height: number): Uint8Arra
   return out;
 }
 
+/** Separable box dilation — O(n·r) — produces thick mask ring for outlines */
+function dilateMask(mask: Uint8Array, width: number, height: number, radius: number): Uint8Array {
+  const tmp = new Uint8Array(mask.length);
+  const out = new Uint8Array(mask.length);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        const nx = x + dx;
+        if (nx >= 0 && nx < width && mask[y * width + nx]) { tmp[y * width + x] = 255; break; }
+      }
+    }
+  }
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      for (let dy = -radius; dy <= radius; dy++) {
+        const ny = y + dy;
+        if (ny >= 0 && ny < height && tmp[ny * width + x]) { out[y * width + x] = 255; break; }
+      }
+    }
+  }
+  return out;
+}
+
+/** Palette map as RGBA — mask pixels transparent, pet pixels fully opaque */
+function makePetRgba(paletteMap: Uint8Array, mask: Uint8Array, width: number, height: number): Uint8Array {
+  const out = new Uint8Array(width * height * 4);
+  for (let i = 0; i < width * height; i++) {
+    out[i * 4]     = paletteMap[i * 3];
+    out[i * 4 + 1] = paletteMap[i * 3 + 1];
+    out[i * 4 + 2] = paletteMap[i * 3 + 2];
+    out[i * 4 + 3] = mask[i] ? 255 : 0;
+  }
+  return out;
+}
+
+/** Dark outline ring: pixels in dilated mask but NOT in original mask */
+function makeOutlineRgba(mask: Uint8Array, dilated: Uint8Array, width: number, height: number): Uint8Array {
+  const out = new Uint8Array(width * height * 4);
+  for (let i = 0; i < width * height; i++) {
+    if (dilated[i] && !mask[i]) {
+      out[i * 4] = 28; out[i * 4 + 1] = 20; out[i * 4 + 2] = 14; out[i * 4 + 3] = 255;
+    }
+  }
+  return out;
+}
+
+/** Semi-transparent dark edges between adjacent k-means colour regions → illustrated look */
+function makeRegionEdgesRgba(indexed: Uint8Array, mask: Uint8Array, width: number, height: number): Uint8Array {
+  const out = new Uint8Array(width * height * 4);
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const i = y * width + x;
+      if (!mask[i]) continue;
+      const c = indexed[i];
+      let isEdge = false;
+      for (let dy = -1; dy <= 1 && !isEdge; dy++) {
+        for (let dx = -1; dx <= 1 && !isEdge; dx++) {
+          if (!dy && !dx) continue;
+          const ni = (y + dy) * width + (x + dx);
+          if (mask[ni] && indexed[ni] !== c) isEdge = true;
+        }
+      }
+      if (isEdge) { out[i * 4] = 32; out[i * 4 + 1] = 22; out[i * 4 + 2] = 14; out[i * 4 + 3] = 155; }
+    }
+  }
+  return out;
+}
+
 function makeRegionClassificationMap(indexed: Uint8Array, regions: RegionManifest[], width: number, height: number): Uint8Array {
   const map = new Map<string, number>();
   regions.forEach((r) => map.set(r.id, r.regionType === "fill" ? 0 : r.regionType === "outline" ? 1 : 2));
@@ -378,7 +446,13 @@ export async function processPetPortrait(canonical: Buffer, outputDir: string, p
   const cropped = await sharp(canonical).extract({ left: bbox.x0, top: bbox.y0, width: cropW, height: cropH }).resize(1024, 1024, { fit: "cover" }).flatten({ background: "#ffffff" }).png().toBuffer();
 
   const quality = await qualityGate(cropped);
-  const { data: cData, info: cInfo } = await sharp(cropped).flatten({ background: "#ffffff" }).raw().toBuffer({ resolveWithObject: true });
+  // Artistic preprocessing: smooth noise + boost saturation → flatter, thread-like colour areas
+  const { data: cData, info: cInfo } = await sharp(cropped)
+    .blur(1.5)
+    .modulate({ saturation: 1.7 })
+    .flatten({ background: "#ffffff" })
+    .raw()
+    .toBuffer({ resolveWithObject: true });
   const cMask = detectPetMask(cData, cInfo.width, cInfo.height);
   const petPaletteLimit = 8;
   const { indexed, palette } = reducePalette(cData, cMask, cInfo.width, cInfo.height, petPaletteLimit);
@@ -401,10 +475,55 @@ export async function processPetPortrait(canonical: Buffer, outputDir: string, p
   await writeRgbPng(dirMap, cInfo.width, cInfo.height, stitchDirectionMapPath);
   await fs.writeFile(regionManifestPath, JSON.stringify({ width: cInfo.width, height: cInfo.height, regions }, null, 2));
 
-  const threadTexture = embroideryTextureSvg(1024, 1024);
-  const frame = Buffer.from(`<svg width='1024' height='1024'><polygon points='512,120 900,512 512,900 120,512' fill='none' stroke='#3b2f2f' stroke-width='18'/></svg>`);
-  const palettePreview = await sharp(Buffer.from(paletteMap), { raw: { width: cInfo.width, height: cInfo.height, channels: 3 } }).png().toBuffer();
-  const preview = await sharp(palettePreview).composite([{ input: threadTexture }, { input: frame }]).png().toBuffer();
+  // ── Embroidery-style preview ─────────────────────────────────────────────
+  // Layers (bottom → top):
+  //   1. Cream background           — fabric outside the patch
+  //   2. Dark-green filled diamond  — the embroidered patch base
+  //   3. Subtle stitch texture      — thread feel on the whole canvas
+  //   4. Dark outline ring          — thick silhouette border around the pet
+  //   5. Pet with alpha             — palette-mapped portrait, overflows diamond
+  //   6. Region edge lines          — dark lines between colour areas (illustrated look)
+  //   7. Diamond stroke border      — drawn ON TOP, frames body, head overflows above
+  const canvasSize = 1024;
+  const inset = 60; // px from canvas edge to diamond vertex
+  const dpts = `512,${inset} ${canvasSize - inset},512 512,${canvasSize - inset} ${inset},512`;
+
+  const diamondFillSvg = Buffer.from(
+    `<svg width='${canvasSize}' height='${canvasSize}' xmlns='http://www.w3.org/2000/svg'>` +
+    `<polygon points='${dpts}' fill='#3a5228'/></svg>`
+  );
+  const stitchOverlaySvg = embroideryTextureSvg(canvasSize, canvasSize);
+  const diamondBorderSvg = Buffer.from(
+    `<svg width='${canvasSize}' height='${canvasSize}' xmlns='http://www.w3.org/2000/svg'>` +
+    `<polygon points='${dpts}' fill='none' stroke='#1a1a0e' stroke-width='26' stroke-linejoin='round'/></svg>`
+  );
+
+  const dilatedMask = dilateMask(cMask, cInfo.width, cInfo.height, 12);
+  const outlineRgba = makeOutlineRgba(cMask, dilatedMask, cInfo.width, cInfo.height);
+  const petRgba     = makePetRgba(paletteMap, cMask, cInfo.width, cInfo.height);
+  const edgesRgba   = makeRegionEdgesRgba(indexed, cMask, cInfo.width, cInfo.height);
+
+  const [outlinePng, petPng, edgesPng] = await Promise.all([
+    sharp(Buffer.from(outlineRgba), { raw: { width: cInfo.width, height: cInfo.height, channels: 4 } }).png().toBuffer(),
+    sharp(Buffer.from(petRgba),     { raw: { width: cInfo.width, height: cInfo.height, channels: 4 } }).png().toBuffer(),
+    sharp(Buffer.from(edgesRgba),   { raw: { width: cInfo.width, height: cInfo.height, channels: 4 } }).png().toBuffer(),
+  ]);
+
+  const creamBg = await sharp({
+    create: { width: canvasSize, height: canvasSize, channels: 3, background: { r: 245, g: 240, b: 232 } }
+  }).png().toBuffer();
+
+  const preview = await sharp(creamBg)
+    .composite([
+      { input: diamondFillSvg },   // green diamond patch
+      { input: stitchOverlaySvg }, // subtle stitch texture
+      { input: outlinePng },       // dark silhouette ring
+      { input: petPng },           // pet overflows the diamond
+      { input: edgesPng },         // illustrated region edges
+      { input: diamondBorderSvg }, // frame stroke on top — head emerges above
+    ])
+    .png()
+    .toBuffer();
 
   return {
     hash: canonicalHash(cropped),
