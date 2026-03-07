@@ -20,21 +20,21 @@ const jobsDisabled = process.env.DISABLE_JOBS === "true";
 // 👇 Crear queues solo si están habilitados
 export const renderQueue = jobsDisabled
   ? null
-  : new Queue<RenderJobs>(QUEUE_NAMES.render, {
+  : new Queue<RenderJobPayload>(QUEUE_NAMES.render, {
       connection: redisConnection as any,
       defaultJobOptions: baseOptions
     });
 
 export const digitizeQueue = jobsDisabled
   ? null
-  : new Queue<DigitizeJobs>(QUEUE_NAMES.digitize, {
+  : new Queue<DigitizeJobPayload>(QUEUE_NAMES.digitize, {
       connection: redisConnection as any,
       defaultJobOptions: baseOptions
     });
 
 export const productionPackQueue = jobsDisabled
   ? null
-  : new Queue<ProductionPackJobs>(QUEUE_NAMES.productionPack, {
+  : new Queue<ProductionPackJobPayload>(QUEUE_NAMES.productionPack, {
       connection: redisConnection as any,
       defaultJobOptions: baseOptions
     });
